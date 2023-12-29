@@ -169,15 +169,6 @@ namespace lox
         {
             return std::visit(*this, n);
         }
-
-    //     auto ToString()
-    //         -> std::string
-    //     {
-    //         return ss.str();
-    //     }
-
-    // private:
-    //     std::stringstream ss;
     };
 } // namespace lox
 

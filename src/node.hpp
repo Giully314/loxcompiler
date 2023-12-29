@@ -7,10 +7,20 @@ node.hpp
 PURPOSE: Define type of nodes in the AST.
 
 CLASSES:
-    GroupingNode:   node for grouping expression.
-    BinaryExprNode: node for binary operators (+, -, *, /).
-    UnaryExprNode:  node for unary operators (!, -).
-    LiteralNode:    node for primitive types in Lox (double, string, nil). Check types.hpp for more info.
+    GroupingNode:       node for grouping expression.
+    BinaryExprNode:     node for binary operators (+, -, *, /).
+    UnaryExprNode:      node for unary operators (!, -).
+    LiteralNode:        node for primitive types in Lox (double, string, nil). Check types.hpp for more info.
+    AssignExprNode:     node for assignment.
+    VarExprNode:        node for var expression (identifier).
+    LogicalExprNode:    node for logical operators.
+    CallExprNode:       node for function call.
+
+    ExprStmtNode:       node for expression statement.
+    PrintStmtNode:      node for print statement.
+    VarStmtNode:        node for var declaration.
+    BlockStmtNode:      node for block statement (list of statements).      
+    FunStmtNode:        node for function declaration.
 
 DESCRIPTION:
     The implementation is based on std::variant to explore building an AST (and traverse it) and avoid dynamic dispatch.
