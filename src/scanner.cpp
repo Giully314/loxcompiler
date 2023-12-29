@@ -4,19 +4,22 @@
 
 namespace lox
 {
-    static bool IsDigit(char c)
+    static auto IsDigit(char c)
+        -> bool
     {
         return c >= '0' && c <= '9';
     }
 
-    static bool IsAlpha(char c) 
+    static auto IsAlpha(char c) 
+        -> bool
     {
         return (c >= 'a' && c <= 'z') ||
                 (c >= 'A' && c <= 'Z') ||
                 c == '_';
     }
 
-    void Scanner::SkipWhitespace()
+    auto Scanner::SkipWhitespace()
+        -> void
     {
         while (true) 
         {
@@ -51,7 +54,8 @@ namespace lox
         }
     }
     
-    TokenType Scanner::IdentifierType()
+    auto Scanner::IdentifierType()
+        -> TokenType
     {
         // a Trie
         switch (text[start]) 
@@ -96,14 +100,16 @@ namespace lox
         return TokenType::Identifier;
     }
 
-    Token Scanner::Identifier()
+    auto Scanner::Identifier()
+        -> Token
     {
         while (IsAlpha(Peek()) || IsDigit(Peek())) Advance();
          return MakeToken(IdentifierType());
     }
 
 
-    Token Scanner::String()
+    auto Scanner::String()
+        -> Token
     {
         while (Peek() != '"' && !IsAtEnd())
         {
@@ -121,7 +127,8 @@ namespace lox
         return MakeToken(TokenType::String);
     }
 
-    Token Scanner::Number()
+    auto Scanner::Number()
+        -> Token
     {
         while (IsDigit(Peek())) Advance();
     
@@ -137,7 +144,8 @@ namespace lox
     }
 
 
-    Token Scanner::NextToken()
+    auto Scanner::NextToken()
+        -> Token
     {
         SkipWhitespace();
         start = current;

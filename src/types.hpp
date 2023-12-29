@@ -22,7 +22,7 @@ namespace lox
 
     // A literal in lox is a string or a double. In future I'm gonna add
     // support for integers and other primitive types.
-    using Literal = std::variant<std::string, f64, bool, LoxNil>;
+    using Literal = std::variant<LoxNil, std::string, f64, bool>;
 } // namespace lox
 
 

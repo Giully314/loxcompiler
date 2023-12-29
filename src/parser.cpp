@@ -1,4 +1,7 @@
 #include "parser.hpp"
+
+#include "log.hpp"
+
 #include <memory>
 #include <string>
 #include <charconv>
@@ -8,16 +11,243 @@ namespace lox
 {
 
     auto Parser::Parse()
-        -> ExprNode
+        -> std::vector<StmtNode>
     {
-        return Expression();
+        std::vector<StmtNode> nodes;
+        while (!IsAtEnd())
+        {
+            nodes.emplace_back(Declaration());
+        }
+        return nodes;
     }
+
+
+    // ******************** DECLARATIONS **************************************
+
+    auto Parser::Declaration()
+        -> StmtNode
+    {
+        if (Match(TokenType::Var))
+        {
+            return VarDeclaration();
+        }
+        if (Match(TokenType::Fun))
+        {
+            return FunDeclaration();
+        }
+        else
+        {
+            return Statement();
+        }
+    }
+
+
+    auto Parser::VarDeclaration()
+        -> StmtNode
+    {
+        Consume(TokenType::Identifier, "Expect a variable name.");
+        auto name = prev;
+        ExprNode init = std::make_unique<LiteralNode>();
+        
+        if (Match(TokenType::Equal))
+        {
+            init = Expression();
+        }
+        Consume(TokenType::Semicolon, "Expect a ';' after variable declaration.");
+
+        return std::make_unique<VarStmtNode>(std::move(name), std::move(init));
+    }
+
+
+    auto Parser::FunDeclaration()
+        -> StmtNode
+    {
+        Consume(TokenType::Identifier, "Expect a function name.");
+        auto fun_name = prev;
+
+        Consume(TokenType::LeftParen, "Expect '(' after function name.");
+
+        std::vector<Token> params;
+        // Check for function parameters.
+        if (!Check(TokenType::RightParen))
+        {
+            do
+            {
+                Consume(TokenType::Identifier, "Expect parameter name.");
+                params.emplace_back(prev);
+            } while (Match(TokenType::Comma));
+        }
+
+        Consume(TokenType::RightParen, "Expect ')' after function parameters.");
+        Consume(TokenType::LeftBrace, "Expect '{' before function body.");
+
+        // It is safe to cast directly the variant because we know the result of BlockStatement().
+        auto bodyvar = BlockStatement();
+        auto& body = *std::get_if<BlockStmtNodePtr>(&bodyvar);
+        return std::make_unique<FunStmtNode>(std::move(fun_name),
+            std::move(params), std::move(body));    
+    }
+
+
+    // ******************** DECLARATIONS **************************************
+
+
+    // ******************** STATEMENTS **************************************
+
+    auto Parser::Statement()
+        -> StmtNode
+    {
+        if (Match(TokenType::Print))
+        {
+            return PrintStatement();   
+        }
+        else if (Match(TokenType::RightBrace))
+        {
+            return BlockStatement();
+        }
+        else 
+        {
+            return ExpressionStatement();
+        }
+    }
+
+
+    auto Parser::PrintStatement()
+        -> StmtNode
+    {
+        auto expr = Expression();
+        Consume(TokenType::Semicolon, "Expect ';' after print.");
+        return std::make_unique<PrintStmtNode>(std::move(expr));
+    }
+
+
+    auto Parser::BlockStatement()
+        -> StmtNode
+    {
+        std::vector<StmtNode> statements;
+        while (!(IsAtEnd() || Check(TokenType::RightBrace)))
+        {
+            statements.emplace_back(Declaration());
+        }
+        Consume(TokenType::RightBrace, "Expect '}' after block.");
+        return std::make_unique<BlockStmtNode>(std::move(statements));
+    }
+
+
+    auto Parser::ExpressionStatement()
+        -> StmtNode
+    {
+        auto expr = std::make_unique<ExprStmtNode>(Expression());
+        Consume(TokenType::Semicolon, "Expect ';' after statement.");
+        return expr;
+    }
+
+    // ******************** STATEMENTS **************************************
+
+
+    // ******************** EXPRESSIONS **************************************
 
     auto Parser::Expression()
         -> ExprNode
     {
-        return Term();
+        return Assignment();
     }
+
+    auto Parser::Assignment()
+        -> ExprNode
+    {
+        auto expr = LogicOr();
+
+        // TODO: support for class setter
+        // If we match the "=" we need to check if the variable is a field of an instance.
+        // and do the parsing with the right precedence even for nested access like
+        // instance_a.b.c = 4;
+        if (Match(TokenType::Equal))
+        {
+            auto equals = prev;
+
+            // This allow nested assignment like a = b = c;
+            auto value = Assignment();
+
+            // Check if expr is a variableexpr (an identifier)
+            if (auto v = std::get_if<VarExprNodePtr>(&expr))
+            {
+                return std::make_unique<AssignExprNode>((*v)->name, std::move(expr));
+            }
+
+            // report an error if the left side of the assignment is not an identifier.
+            ErrorAt(equals, "Invalid target assignment");
+        }
+
+        return expr;
+    }
+
+
+    auto Parser::LogicOr()
+        -> ExprNode
+    {
+        auto expr = LogicAnd();
+
+        if (Match(TokenType::Or))
+        {
+            auto op = prev;
+            auto right = LogicAnd();
+            expr = std::make_unique<LogicalExprNode>(std::move(op), 
+                std::move(expr), std::move(right));
+        }
+        return expr;
+    }
+
+
+    auto Parser::LogicAnd()
+        -> ExprNode
+    {
+        auto expr = Equality();
+
+        if (Match(TokenType::And))
+        {
+            auto op = prev;
+            auto right = Equality();
+            expr = std::make_unique<LogicalExprNode>(std::move(op), 
+                std::move(expr), std::move(right));
+        }
+        return expr;
+    }
+
+
+    auto Parser::Equality()
+        -> ExprNode
+    {
+        auto expr = Comparison();
+
+        if (Match({TokenType::BangEqual, TokenType::EqualEqual}))
+        {
+            auto op = prev;
+            auto right = Comparison();
+            expr = std::make_unique<BinaryExprNode>(std::move(op),
+                std::move(expr), std::move(right));
+        }
+
+        return expr;
+    }
+
+
+    auto Parser::Comparison()
+        -> ExprNode
+    {
+        auto expr = Term();
+
+        if (Match({TokenType::Less, TokenType::LessEqual, 
+                TokenType::Greater, TokenType::GreaterEqual}))
+        {
+            auto op = prev;
+            auto right = Term();
+            expr = std::make_unique<BinaryExprNode>(std::move(op),
+                std::move(expr), std::move(right));
+        }
+        return expr;
+    }
+
 
     auto Parser::Term()
         -> ExprNode
@@ -77,6 +307,34 @@ namespace lox
     }
 
 
+    auto Parser::Call()
+        -> ExprNode
+    {
+        auto expr = Primary();
+
+        // Parse function arguments.
+        // TODO: add support for properties when classes will be supported.
+        while (Match(TokenType::LeftParen))
+        {
+            std::vector<ExprNode> args;
+            if (!Check(TokenType::RightParen))
+            {
+                do
+                {
+                    args.emplace_back(Expression());
+                } while (Match(TokenType::Comma));
+            }
+
+            Consume(TokenType::RightParen, "Expect ')' after arguments.");
+            auto paren = prev;
+            expr = std::make_unique<CallExprNode>(std::move(paren),
+                std::move(expr), std::move(args));
+        }
+
+        return expr;
+    }
+
+
     auto Parser::Primary()
         -> ExprNode
     {
@@ -94,13 +352,17 @@ namespace lox
             auto r = std::from_chars(prev.Lexeme().begin(), prev.Lexeme().end(), d);
             if (r.ec == std::errc::invalid_argument)
             {
-                // TODO: report error
+                ErrorAtCurrent("Error converting number to string.");
             }
             return std::make_unique<LiteralNode>(d);
         }
         else if (Match(TokenType::String))
         {
             return std::make_unique<LiteralNode>(std::string{prev.Lexeme()});
+        }
+        else if (Match(TokenType::Identifier))
+        {
+            return std::make_unique<VarExprNode>(prev);
         }   
         else
         {
@@ -110,6 +372,7 @@ namespace lox
         }
     }
 
+    // ******************** EXPRESSIONS **************************************
 
 
     // ***************** ERROR HANDLING *******************************
@@ -134,7 +397,7 @@ namespace lox
                 std::cout << " at " << t.Lexeme();
         }
 
-        std::cout << msg << std::endl;
+        std::cout << ": " << msg << std::endl;
         had_error = true;
     }
 

@@ -27,12 +27,23 @@ namespace lox
         }
 
         // Return the next token.
-        Token NextToken();
+        auto NextToken()
+            -> Token;
 
-        bool IsAtEnd() const noexcept
+        auto IsAtEnd() const noexcept
+            -> bool
         {
             // TODO: is correct or text.size() -1?
             return current == text.size();
+        }
+
+
+        auto Reset()
+            -> void
+        {
+            start = 0;
+            current = 0;
+            line = 1;
         }
 
     private:
@@ -109,8 +120,7 @@ namespace lox
         std::uint32_t current{0};
         
         // Keep track of the current line.
-        std::uint32_t line{0};
-
+        std::uint32_t line{1};
     };
 
 } // namespace lox

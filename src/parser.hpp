@@ -23,6 +23,7 @@ https://craftinginterpreters.com/appendix-i.html
 
 #include <string_view>
 #include <initializer_list>
+#include <vector>
 
 
 namespace lox
@@ -37,7 +38,7 @@ namespace lox
         }
 
         auto Parse()
-            -> ExprNode;
+            -> std::vector<StmtNode>;
 
 
     // Parser internal methods to handle tokens.
@@ -79,22 +80,76 @@ namespace lox
         auto Consume(const TokenType type, const std::string_view msg)
             -> void; 
         
+        
+        auto IsAtEnd() const noexcept 
+            -> bool
+        {
+            return current.Type() == TokenType::Eof;
+        }
 
     private:
+        
+        // Declarations
+        
+        auto Declaration()
+            -> StmtNode;
+
+        auto VarDeclaration() 
+            -> StmtNode;
+
+        auto FunDeclaration()
+            -> StmtNode;
+
+        // Statements
+        
+        auto Statement()
+            -> StmtNode;
+        
+        auto PrintStatement()
+            -> StmtNode;
+
+        auto ExpressionStatement()
+            -> StmtNode;
+
+        auto BlockStatement()
+            -> StmtNode;
+
+
+
+        // Expressions
+
         auto Expression() 
-            ->ExprNode;
+            -> ExprNode;
+
+        auto Assignment()
+            -> ExprNode;
+
+        auto LogicOr()
+            -> ExprNode;
+
+        auto LogicAnd()
+            -> ExprNode; 
+        
+        auto Equality()
+            -> ExprNode;
+
+        auto Comparison()
+            -> ExprNode;
 
         auto Term() 
-            ->ExprNode;
+            -> ExprNode;
 
         auto Factor() 
-            ->ExprNode;
+            -> ExprNode;
 
         auto Unary() 
-            ->ExprNode;
+            -> ExprNode;
+
+        auto Call()
+            -> ExprNode;
 
         auto Primary() 
-            ->ExprNode;
+            -> ExprNode;
 
     private:
         non_owned_ptr<Scanner> scanner;
