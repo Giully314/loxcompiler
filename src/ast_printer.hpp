@@ -102,6 +102,12 @@ namespace lox
             return ss.str();
         }
 
+        auto operator()(const CompExprNodePtr& n) const
+            -> std::string
+        {
+            return Parenthesize(n->op.Lexeme(), n->left, n->right);
+        }
+
         auto operator()(const ExprStmtNodePtr& n) const
             -> std::string 
         {

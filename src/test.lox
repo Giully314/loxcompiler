@@ -1,10 +1,11 @@
-// fun Test(e, r, t)
-// {
-//     var x = 5 +5;
-//     print x;
-//     return x;
-// }
+fun Test(e, r, t)
+{
+    var x = 5 +5;
+    print x;
+    var y = 3 < 5;
+    return x;
+}
 
-// print x;
+print x;
 
 Test(3, 4, 5);

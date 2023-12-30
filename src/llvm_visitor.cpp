@@ -5,6 +5,7 @@
 #include <llvm/IR/Verifier.h>
 
 #include <variant>
+#include <utility>
 
 #include "log.hpp"
 #include "token.hpp"
@@ -45,44 +46,6 @@ namespace lox
     }
 
 
-    auto LLVMVisitor::Visit(const ExprNode& node)
-            -> void
-    {
-        constexpr auto size = std::variant_size_v<std::remove_cvref_t<decltype(node)>>;
-        switch (node.index())
-        {
-        case 0: // BinaryExprNodePtr
-            if constexpr (0 < size)
-            {
-                (*this)(*std::get_if<0>(&node));
-            }
-            break;
-        case 1: // UnaryExprNodePtr
-            if constexpr (1 < size)
-            {
-                (*this)(*std::get_if<1>(&node));
-            }
-            break; 
-            
-        case 2: // LiteralNodePtr
-            if constexpr (2 < size)
-            {
-                (*this)(*std::get_if<2>(&node));
-            }
-            break;
-        
-        case 3: // GroupingNodePtr
-            if constexpr (3 < size)
-            {
-                (*this)(*std::get_if<3>(&node));
-            }
-            break;
-
-        default:
-            break;
-        }
-    }
-
 
     auto LLVMVisitor::operator()(const GroupingNodePtr& node)
         -> void
@@ -91,12 +54,49 @@ namespace lox
     }
 
 
+    auto LLVMVisitor::operator()(const BinaryExprNodePtr& node)
+        -> void
+    {
+        Log("Binary");
+        Visit(node->left);
+        auto left = value;
+        Visit(node->right);
+        auto right = value;
+
+        if (!left || !right)
+        {
+            // Error 
+            Error("Left or right operand in binary expression is null.");
+        }
+
+        switch (node->op.Type())
+        {
+        case TokenType::Plus:   // + 
+            Log("+");
+            value = builder->CreateFAdd(left, right, "addtmp");
+            break; 
+        case TokenType::Minus:  // -
+            value = builder->CreateFSub(left, right, "subtmp");
+            break;
+        case TokenType::Star:   // *
+            value = builder->CreateFMul(left, right, "multmp");
+            break;
+        case TokenType::Slash:  // /
+            value = builder->CreateFDiv(left, right, "divtmp");
+            break;
+        default:
+            // log error
+            break;
+        }
+    }
+
+
     auto LLVMVisitor::operator()(const UnaryExprNodePtr& node)
             -> void
     {
         Log("Unary");
         Visit(node->right);
-        auto right = values.back();
+        auto right = value;
         if (!right)
         {
             // Error
@@ -109,44 +109,8 @@ namespace lox
             // TODO
             break;
         case TokenType::Minus:  // -
-            values.emplace_back(builder->CreateFNeg(right, "tmpneg"));
+            value = builder->CreateFNeg(right, "tmpneg");
             break; 
-        default:
-            break;
-        }
-    }
-
-
-    auto LLVMVisitor::operator()(const BinaryExprNodePtr& node)
-        -> void
-    {
-        Log("Binary");
-        Visit(node->left);
-        auto left = values.back();
-        Visit(node->right);
-        auto right = values.back();
-
-        if (!left || !right)
-        {
-            // Error 
-            Error("Left or right operand in binary expression is null.");
-        }
-
-        switch (node->op.Type())
-        {
-        case TokenType::Plus:   // + 
-            Log("+");
-            values.emplace_back(builder->CreateFAdd(left, right, "addtmp"));
-            break; 
-        case TokenType::Minus:  // -
-            values.emplace_back(builder->CreateFSub(left, right, "subtmp"));
-            break;
-        case TokenType::Star:   // *
-            values.emplace_back(builder->CreateFMul(left, right, "multmp"));
-            break;
-        case TokenType::Slash:  // /
-            values.emplace_back(builder->CreateFDiv(left, right, "divtmp"));
-            break;
         default:
             break;
         }
@@ -156,27 +120,61 @@ namespace lox
     auto LLVMVisitor::operator()(const LiteralNodePtr& node)
         -> void
     {
-        Log("Literal");
-        switch (node->literal.index())
-        {
-        case 0: // std::string
-            // string not supported yet
-            break;
-        case 1: // f64
-            values.emplace_back(
-                llvm::ConstantFP::get(*context, 
-                llvm::APFloat{*std::get_if<1>(&node->literal)}));
-            // values.back()->getType()->print(llvm::outs());
-            break;
-            
-        case 2: // bool
-        case 3: // LoxNil
-            // for now nil is not supported 
-            break;
-        default:
-            // Do nothing
-            break;
-        }   
+        Visit(node->literal);
     }
+
+
+    auto LLVMVisitor::operator()(const AssignExprNodePtr& node)
+            -> void
+    {
+        // Check if the name is a variable. Otherwise throw exception.
+    }
+
+
+    auto LLVMVisitor::operator()(const VarExprNodePtr& node)
+            -> void
+    {
+        // variables.emplace(
+        //     std::make_pair(std::string{node->name.Lexeme})
+        //     );
+    }
+
+
+    auto LLVMVisitor::operator()(const LogicalExprNodePtr& node)
+            -> void
+    {
+
+    }
+
+
+
+    // ************************* VISIT LITERAL ***********************
+
+    auto LLVMVisitor::operator()(const LoxNil& value)
+        -> void
+    {
+        // I don't know if this is correct.
+        // value = llvm::ConstantPointerNull::get(llvm::PointerType::get())
+    }
+        
+    auto LLVMVisitor::operator()(const std::string& value)
+        -> void
+    {
+
+    }
+
+    auto LLVMVisitor::operator()(const f64& value)
+        -> void
+    {
+        this->value = llvm::ConstantFP::get(*context, llvm::APFloat{value});
+    }
+
+    auto LLVMVisitor::operator()(const bool& value)
+        -> void
+    {
+        // this->value = llvm::Con
+    }
+
+    // ************************* VISIT LITERAL ***********************
 
 } // namespace lox

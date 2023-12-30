@@ -264,7 +264,7 @@ namespace lox
         {
             auto op = prev;
             auto right = Term();
-            expr = std::make_unique<BinaryExprNode>(std::move(op),
+            expr = std::make_unique<CompExprNode>(std::move(op),
                 std::move(expr), std::move(right));
         }
         return expr;

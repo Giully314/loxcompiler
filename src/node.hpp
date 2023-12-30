@@ -25,6 +25,7 @@ CLASSES:
 
 DESCRIPTION:
     The implementation is based on std::variant to explore building an AST (and traverse it) and avoid dynamic dispatch.
+
 */
 
 
@@ -46,7 +47,8 @@ namespace lox
     struct VarExprNode;
     struct LogicalExprNode;
     struct CallExprNode;
-    
+    struct CompExprNode;
+
     using BinaryExprNodePtr = std::unique_ptr<BinaryExprNode>;
     using UnaryExprNodePtr = std::unique_ptr<UnaryExprNode>;
     using LiteralNodePtr = std::unique_ptr<LiteralNode>;
@@ -55,12 +57,13 @@ namespace lox
     using VarExprNodePtr = std::unique_ptr<VarExprNode>;
     using LogicalExprNodePtr = std::unique_ptr<LogicalExprNode>;
     using CallExprNodePtr = std::unique_ptr<CallExprNode>;
+    using CompExprNodePtr = std::unique_ptr<CompExprNode>;
 
 
     using ExprNode = std::variant<BinaryExprNodePtr, UnaryExprNodePtr,
                         LiteralNodePtr, GroupingNodePtr,
                         AssignExprNodePtr, VarExprNodePtr, LogicalExprNodePtr,
-                        CallExprNodePtr>;
+                        CallExprNodePtr, CompExprNodePtr>;
 
 
     struct ExprStmtNode;
@@ -167,6 +170,17 @@ namespace lox
         Token paren;
         ExprNode callee;
         std::vector<ExprNode> arguments;
+    };
+
+
+    struct CompExprNode
+    {   
+        explicit CompExprNode(Token op_, ExprNode left_, ExprNode right_) :
+            op(std::move(op_)), left(std::move(left_)), right(std::move(right_)) { }
+
+        Token op;
+        ExprNode left;
+        ExprNode right;
     };
 
 
