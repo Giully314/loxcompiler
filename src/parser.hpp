@@ -11,6 +11,9 @@ CLASSES:
 
 DESCRIPTION:
 
+TODO:
+    - raise exception for parser error and add synchronization.
+
 GRAMMAR:
 https://craftinginterpreters.com/appendix-i.html
 */
@@ -108,10 +111,13 @@ namespace lox
         auto PrintStatement()
             -> StmtNode;
 
+        auto BlockStatement()
+            -> StmtNode;
+
         auto ExpressionStatement()
             -> StmtNode;
 
-        auto BlockStatement()
+        auto ReturnStatement()
             -> StmtNode;
 
 

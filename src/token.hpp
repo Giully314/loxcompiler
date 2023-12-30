@@ -49,7 +49,7 @@ namespace lox
     public:
         constexpr explicit Token() = default;
         
-        constexpr explicit Token(std::string_view lexeme_, TokenType type_, std::uint32_t line_) : type(type_), lexeme(lexeme_),
+        constexpr explicit Token(std::string_view lexeme_, TokenType type_, std::uint32_t line_) : lexeme(lexeme_), type(type_),
             line(line_) { }
         
         constexpr explicit Token(TokenType type_) : type(type_) { }

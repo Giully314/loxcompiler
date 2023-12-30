@@ -105,6 +105,10 @@ namespace lox
         {
             return BlockStatement();
         }
+        else if (Match(TokenType::Return))
+        {
+            return ReturnStatement();
+        } 
         else 
         {
             return ExpressionStatement();
@@ -140,6 +144,24 @@ namespace lox
         auto expr = std::make_unique<ExprStmtNode>(Expression());
         Consume(TokenType::Semicolon, "Expect ';' after statement.");
         return expr;
+    }
+
+
+    auto Parser::ReturnStatement()
+        -> StmtNode 
+    {
+        // Save the return token in case of error report.
+        auto keyword = prev;
+        // Default value is nil.
+        ExprNode expr = std::make_unique<LiteralNode>();
+        
+        // Check if the return returns a value 
+        if (!Check(TokenType::Semicolon))
+        {
+            expr = Expression();
+        }
+        Consume(TokenType::Semicolon, "Expect ';' after return value.");
+        return std::make_unique<ReturnStmtNode>(std::move(keyword), std::move(expr));
     }
 
     // ******************** STATEMENTS **************************************
@@ -303,7 +325,7 @@ namespace lox
                 std::move(right)
             );
         }
-        return Primary();
+        return Call();
     }
 
 

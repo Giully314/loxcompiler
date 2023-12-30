@@ -89,7 +89,17 @@ namespace lox
         auto operator()(const CallExprNodePtr& n) const
             -> std::string 
         {
-            return "No support";
+            std::stringstream ss;
+            ss << Visit(n->callee);
+            ss << "(";
+            for (const auto& p : n->arguments)
+            {
+                ss << Visit(p) << ", ";
+            }
+            ss.seekp(-2, ss.cur);
+            ss << ")";
+
+            return ss.str();
         }
 
         auto operator()(const ExprStmtNodePtr& n) const
@@ -135,6 +145,12 @@ namespace lox
             ss << ")\nBody:\n";
             ss << (*this)(n->body);
             return ss.str();
+        }
+
+        auto operator()(const ReturnStmtNodePtr& n) const 
+            -> std::string
+        {
+            return Parenthesize("Return", n->value);
         }
 
         auto Parenthesize(const std::string_view name, const ExprNode& n) const 

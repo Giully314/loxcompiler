@@ -21,6 +21,7 @@ CLASSES:
     VarStmtNode:        node for var declaration.
     BlockStmtNode:      node for block statement (list of statements).      
     FunStmtNode:        node for function declaration.
+    ReturnStmtNode:     node for return statement.
 
 DESCRIPTION:
     The implementation is based on std::variant to explore building an AST (and traverse it) and avoid dynamic dispatch.
@@ -67,16 +68,20 @@ namespace lox
     struct VarStmtNode;
     struct BlockStmtNode;
     struct FunStmtNode;
-    
+    struct ReturnStmtNode;
+
     using ExprStmtNodePtr = std::unique_ptr<ExprStmtNode>;
     using PrintStmtNodePtr = std::unique_ptr<PrintStmtNode>;
     using VarStmtNodePtr = std::unique_ptr<VarStmtNode>;
     using BlockStmtNodePtr = std::unique_ptr<BlockStmtNode>;
     using FunStmtNodePtr = std::unique_ptr<FunStmtNode>;
+    using ReturnStmtNodePtr = std::unique_ptr<ReturnStmtNode>;
+
     
 
     using StmtNode = std::variant<ExprStmtNodePtr, PrintStmtNodePtr,
-                        VarStmtNodePtr, BlockStmtNodePtr, FunStmtNodePtr>;
+                        VarStmtNodePtr, BlockStmtNodePtr, FunStmtNodePtr,
+                        ReturnStmtNodePtr>;
 
 
     // ********************** EXPRESSION NODE *************************************
@@ -212,6 +217,16 @@ namespace lox
         Token name;
         std::vector<Token> parameters;
         BlockStmtNodePtr body;
+    };
+
+
+    struct ReturnStmtNode
+    {
+        explicit ReturnStmtNode(Token keyword_, ExprNode value_) : 
+            keyword(std::move(keyword_)), value(std::move(value_)) { }
+
+        Token keyword;
+        ExprNode value;
     };
 
 } // namespace lox
