@@ -71,7 +71,9 @@ namespace lox
         auto operator()(const AssignExprNodePtr& n) const
             -> std::string
         {
-            return Parenthesize("Assign", n->expr);
+            std::stringstream ss;
+            ss << n->name.Lexeme() << " = " << Visit(n->expr) << "\n";
+            return ss.str();
         }
 
         auto operator()(const VarExprNodePtr& n) const
@@ -123,7 +125,9 @@ namespace lox
         auto operator()(const VarStmtNodePtr& n) const 
             -> std::string
         {
-            return Parenthesize(n->name.Lexeme(), n->initializer);
+            std::stringstream ss;
+            ss << "var " << n->name.Lexeme() << " = " << Visit(n->initializer) << "\n";
+            return ss.str(); 
         }
 
         auto operator()(const BlockStmtNodePtr& n) const 
@@ -157,6 +161,37 @@ namespace lox
             -> std::string
         {
             return Parenthesize("Return", n->value);
+        }
+
+
+        auto operator()(const IfStmtNodePtr& n) const
+            -> std::string
+        {
+            std::stringstream ss;
+            ss << "if (";
+            ss << Visit(n->condition);
+            ss << ") then {\n";
+            ss << Visit(n->then_branch);
+            ss << "}\n";
+
+            if (n->else_branch)
+            {
+                ss << "else {\n";
+                ss << Visit(*n->else_branch);
+                ss << "}\n";
+            }
+            return ss.str();
+        }
+
+        auto operator()(const WhileStmtNodePtr& n) const
+            -> std::string
+        {
+            std::stringstream ss;
+            ss << "while (";
+            ss << Visit(n->condition) << ") {\n";
+            ss << Visit(n->body);
+            ss << "}\n";
+            return ss.str();
         }
 
         auto Parenthesize(const std::string_view name, const ExprNode& n) const 

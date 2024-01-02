@@ -107,6 +107,15 @@ namespace lox
         
         auto Statement()
             -> StmtNode;
+
+        auto ForStatement()
+            -> StmtNode;
+
+        auto IfStatement()
+            -> StmtNode;
+        
+        auto WhileStatement()
+            -> StmtNode;
         
         auto PrintStatement()
             -> StmtNode;

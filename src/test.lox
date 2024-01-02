@@ -1,11 +1,21 @@
-fun Test(e, r, t)
-{
-    var x = 5 +5;
-    print x;
-    var y = 3 < 5;
-    return x;
-}
+// for (var i = 0; i < 5; i = i + 1)
+// {
+//     print i;
+//     var x = 4 + 1;
+//     x = x + 1;
+// }
 
-print x;
+// for (; i < 5; i = i + 1)
+// {
+    
+// }
 
-Test(3, 4, 5);
+// for (;; i = i + 1)
+// {
+    
+// }
+
+// for (;;)
+// {
+    
+// }

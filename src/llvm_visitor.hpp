@@ -11,10 +11,11 @@ CLASSES:
 DESCRIPTION:
 
 
+TODO:
+    - support for nested loops continue break (need to keep tracks of the loops using a stack).
 */
 
 
-#include <llvm/ADT/APFloat.h>
 
 #include <llvm/IR/BasicBlock.h>
 #include <llvm/IR/LLVMContext.h>
@@ -23,6 +24,12 @@ DESCRIPTION:
 #include <llvm/IR/Value.h>
 #include <llvm/IR/DerivedTypes.h> // FunctionType
 #include <llvm/IR/Function.h> // Function
+#include <llvm/IR/ValueHandle.h> // TrackingVH
+#include <llvm/ADT/StringMap.h>
+#include <llvm/IR/Instructions.h> // PHINode
+
+#include <llvm/ADT/DenseMap.h>
+#include <llvm/ADT/APFloat.h>
 
 #include <llvm/Support/raw_ostream.h>
 
@@ -43,6 +50,8 @@ namespace lox
     class LLVMVisitor
     {
     public:
+
+        // Create the function main.
         explicit LLVMVisitor();
 
         // ~LLVMVisitor();
@@ -58,15 +67,22 @@ namespace lox
         }
 
 
+        auto Generate(const StmtNode& ast) 
+            -> void;
+
+
+    private:
         template <typename T>
-            requires std::same_as<T, ExprNode> || std::same_as<T, StmtNode> ||
-                std::same_as<T, Literal>
+            requires std::same_as<T, ExprNode> || std::same_as<T, Literal> || 
+                std::same_as<T, StmtNode>
         auto Visit(const T& node)
             -> void
         {
             std::visit(*this, node);
         }
 
+
+        // Visitor for expressions. Expressions always return a value (saved inside current_value).
 
         auto operator()(const GroupingNodePtr& node)
             -> void;
@@ -96,6 +112,9 @@ namespace lox
             -> void;
 
 
+
+        // Visitor for statements. 
+
         auto operator()(const ExprStmtNodePtr& node)
             -> void;
 
@@ -114,8 +133,12 @@ namespace lox
         auto operator()(const ReturnStmtNodePtr& node)
             -> void;
 
+        auto operator()(const IfStmtNodePtr& node)
+            -> void;
+        
+        auto operator()(const WhileStmtNodePtr& node)
+            -> void;
 
-    private:
 
         // Visit for Literal.
 
@@ -132,26 +155,84 @@ namespace lox
             -> void;
 
 
+    // Utility functions.
+    private:
+
+        // Set the current basic block and insert point.
+        auto SetCurrentBlock(llvm::BasicBlock* bb)
+            -> void 
+        {
+            current_block = bb;
+            builder->SetInsertPoint(current_block);
+        }
+
+        
+        auto WriteLocalVar(llvm::BasicBlock* bb, std::string_view name, llvm::Value* value)
+            -> void
+        {
+            current_def[bb].defs[name] = value;
+        }
+
+
+        auto AddEmptyPhi(llvm::BasicBlock* bb, std::string_view name)
+            -> llvm::PHINode*
+        {
+            // return bb->empty() ? 
+            //         llvm::PHINode::Create()
+        }
+
+        auto ReadLocalVarRecursive(llvm::BasicBlock* bb, std::string_view name)
+            -> llvm::Value*;
+
+
+        auto ReadLocalVar(llvm::BasicBlock* bb, std::string_view name)
+            -> llvm::Value*
+        {
+            if (auto value = current_def[bb].defs.find(name); value != current_def[bb].defs.end())
+            {
+                return value->second;
+            }
+
+            // Recurse through outer basic block to check if the name is defined outside.
+            return ReadLocalVarRecutrsive(bb, name);
+        }
+
+    // Utility classes for internal usage.
+    private:
+
+        // This struct keeps track of declaration of names inside a basic block.
+        struct BasicBlockDef
+        {
+            // It's safe to use a string_view because we are referring to a string
+            // in the source code (it is freed after the llvm pass). 
+            llvm::DenseMap<std::string_view, llvm::TrackingVH<llvm::Value>> defs;
+            llvm::DenseMap<llvm::PHINode*, std::string_view> incomplete_phis;
+            
+            // true if we know all the predecessors of this block, false otherwise.
+            bool sealed = false;
+        };
+
+
     private:
         std::unique_ptr<llvm::LLVMContext> context;
         std::unique_ptr<llvm::Module> mod;
         std::unique_ptr<llvm::IRBuilder<>> builder;
         
-        std::unordered_map<std::string, non_owned_ptr<llvm::Value>> named_values;
-        std::unordered_map<std::string, non_owned_ptr<llvm::Value>> variables;
+        llvm::StringMap<llvm::Value*> name_vars;
+
+        // Map basic blocks to definitions inside the block
+        llvm::DenseMap<llvm::BasicBlock*, BasicBlockDef> current_def;
+
+
 
         // Last value produced.
-        llvm::Value* value;
+        llvm::Value* current_value;
 
         // Current function.
-        llvm::Function* func;
+        llvm::Function* current_func;
 
         // Current block.
-        llvm::BasicBlock* block;
-
-        // Temp
-        llvm::FunctionType* ft;
-        llvm::Function* f;
+        llvm::BasicBlock* current_block;
     };
 } // namespace lox
 

@@ -15,6 +15,7 @@ CLASSES:
     VarExprNode:        node for var expression (identifier).
     LogicalExprNode:    node for logical operators.
     CallExprNode:       node for function call.
+    CompExprNode:       node for binary comparison
 
     ExprStmtNode:       node for expression statement.
     PrintStmtNode:      node for print statement.
@@ -22,6 +23,8 @@ CLASSES:
     BlockStmtNode:      node for block statement (list of statements).      
     FunStmtNode:        node for function declaration.
     ReturnStmtNode:     node for return statement.
+    IfStmtNode:         node for if/then/else statement.
+    WhileStmtNode:      node for while statetement. This node is also used for the for statement after some change (check the parser).
 
 DESCRIPTION:
     The implementation is based on std::variant to explore building an AST (and traverse it) and avoid dynamic dispatch.
@@ -30,9 +33,11 @@ DESCRIPTION:
 
 
 #include <variant>
+#include <optional>
 #include <memory>
 #include <utility>
 #include <vector>
+#include <initializer_list>
 
 #include "token.hpp"
 #include "types.hpp"
@@ -72,6 +77,8 @@ namespace lox
     struct BlockStmtNode;
     struct FunStmtNode;
     struct ReturnStmtNode;
+    struct IfStmtNode;
+    struct WhileStmtNode;
 
     using ExprStmtNodePtr = std::unique_ptr<ExprStmtNode>;
     using PrintStmtNodePtr = std::unique_ptr<PrintStmtNode>;
@@ -79,12 +86,14 @@ namespace lox
     using BlockStmtNodePtr = std::unique_ptr<BlockStmtNode>;
     using FunStmtNodePtr = std::unique_ptr<FunStmtNode>;
     using ReturnStmtNodePtr = std::unique_ptr<ReturnStmtNode>;
+    using IfStmtNodePtr = std::unique_ptr<IfStmtNode>;
+    using WhileStmtNodePtr = std::unique_ptr<WhileStmtNode>;
 
     
 
     using StmtNode = std::variant<ExprStmtNodePtr, PrintStmtNodePtr,
                         VarStmtNodePtr, BlockStmtNodePtr, FunStmtNodePtr,
-                        ReturnStmtNodePtr>;
+                        ReturnStmtNodePtr, IfStmtNodePtr, WhileStmtNodePtr>;
 
 
     // ********************** EXPRESSION NODE *************************************
@@ -216,6 +225,18 @@ namespace lox
 
     struct BlockStmtNode
     {
+        explicit BlockStmtNode(StmtNode node) 
+        {
+            statements.emplace_back(std::move(node));
+        }
+
+        explicit BlockStmtNode(StmtNode node1, StmtNode node2) 
+        {
+            statements.reserve(2);
+            statements.emplace_back(std::move(node1));
+            statements.emplace_back(std::move(node2));
+        }
+
         explicit BlockStmtNode(std::vector<StmtNode> s) :
             statements(std::move(s)) { }
 
@@ -241,6 +262,46 @@ namespace lox
 
         Token keyword;
         ExprNode value;
+    };
+
+
+    struct IfStmtNode
+    {
+        explicit IfStmtNode(ExprNode condition_, StmtNode then_branch_) : 
+            condition(std::move(condition_)), then_branch(std::move(then_branch_)) { }
+
+        explicit IfStmtNode(ExprNode condition_, StmtNode then_branch_, StmtNode else_branch_) : 
+            condition(std::move(condition_)), then_branch(std::move(then_branch_)),
+            else_branch(std::move(else_branch_)) { }
+
+        explicit IfStmtNode(ExprNode condition_, StmtNode then_branch_, std::optional<StmtNode> else_branch_) : 
+            condition(std::move(condition_)), then_branch(std::move(then_branch_)),
+            else_branch(std::move(else_branch_)) { }
+
+        ExprNode condition;
+        StmtNode then_branch;
+        std::optional<StmtNode> else_branch;
+    };
+
+
+    struct ForStmtNode
+    {
+        explicit ForStmtNode();
+
+        std::optional<StmtNode> initializer;
+        std::optional<ExprNode> condition;
+        std::optional<ExprNode> increment;
+        BlockStmtNodePtr body;
+    };
+
+
+    struct WhileStmtNode
+    {
+        explicit WhileStmtNode(ExprNode condition_, StmtNode body_) : 
+            condition(std::move(condition_)), body(std::move(body_)) { }
+
+        ExprNode condition;
+        StmtNode body;
     };
 
 } // namespace lox

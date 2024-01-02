@@ -6,6 +6,7 @@
 #include <string>
 #include <charconv>
 #include <iostream>
+#include <optional>
 
 namespace lox
 {
@@ -101,18 +102,137 @@ namespace lox
         {
             return PrintStatement();   
         }
-        else if (Match(TokenType::RightBrace))
+        else if (Match(TokenType::LeftBrace))
         {
             return BlockStatement();
         }
         else if (Match(TokenType::Return))
         {
             return ReturnStatement();
+        }
+        else if (Match(TokenType::For))
+        {
+            return ForStatement();
+        } 
+        else if (Match(TokenType::If))
+        {
+            return IfStatement();
+        } 
+        else if (Match(TokenType::While))
+        {
+            return WhileStatement();
         } 
         else 
         {
             return ExpressionStatement();
         }
+    }
+
+
+    auto Parser::ForStatement()
+        -> StmtNode
+    {
+        // The for statement is written in terms of the while statement.
+
+        Consume(TokenType::LeftParen, "Expect '(' after 'for'.");
+
+        // Check for init condition.
+        std::optional<StmtNode> initializer;
+        if (Match(TokenType::Var)) // Var init
+        {
+            initializer = VarDeclaration();
+        }
+        else if (Match(TokenType::Semicolon)) // Empty init.
+        {
+            // Do nothing.
+        }
+        else // Expression init.
+        {
+            initializer = ExpressionStatement();
+        }
+        // Consume(TokenType::Semicolon, "Expect ';' after initializer");
+        
+        // Check for condition.
+        std::optional<ExprNode> condition;
+        if (!Check(TokenType::Semicolon))
+        {
+            condition = Expression();
+        }
+
+        Consume(TokenType::Semicolon, "Expect ';' after condition");
+
+        // Check for increment.
+        std::optional<StmtNode> increment;
+        if (!Check(TokenType::RightParen))
+        {
+            increment = std::make_unique<ExprStmtNode>(Expression());
+        }
+
+        Consume(TokenType::RightParen, "Expect ')' after 'for' condition.");
+
+        // Parse the body.
+        auto body = Statement();
+
+        // Construct the while loop from the for loop.
+        if (increment)
+        {
+            body = std::make_unique<BlockStmtNode>(
+                std::move(body),
+                std::move(*increment)
+            );
+        }
+
+        if (!condition)
+        {
+            condition = std::make_unique<LiteralNode>(true);
+        }
+        body = std::make_unique<WhileStmtNode>(std::move(*condition), std::move(body));
+
+        if (initializer)
+        {
+            body = std::make_unique<BlockStmtNode>(std::move(*initializer), std::move(body));
+        } 
+
+        return body;
+    }
+
+
+    auto Parser::IfStatement()
+        -> StmtNode
+    {
+        Consume(TokenType::LeftParen, "Expect '(' after 'if'.");
+
+        auto condition = Expression();
+        Consume(TokenType::RightParen, "Expect ')' after 'if' condition.");
+
+        auto then = Statement();
+
+        std::optional<StmtNode> else_branch;
+        if (Match(TokenType::Else))
+        {
+            else_branch = Statement();
+        }
+
+        return std::make_unique<IfStmtNode>(std::move(condition), std::move(then),
+                std::move(else_branch));    
+    }
+
+
+    auto Parser::WhileStatement()
+        -> StmtNode
+    {
+        Consume(TokenType::LeftParen, "Expect '(' after 'while'");
+        
+        auto condition = Expression();
+        
+        Consume(TokenType::RightParen, "Expect ')' after 'while' condition");
+
+        auto statement = Statement();
+
+        return std::make_unique<WhileStmtNode>(
+            std::move(condition),
+            std::move(statement)
+        ); 
     }
 
 
@@ -194,7 +314,7 @@ namespace lox
             // Check if expr is a variableexpr (an identifier)
             if (auto v = std::get_if<VarExprNodePtr>(&expr))
             {
-                return std::make_unique<AssignExprNode>((*v)->name, std::move(expr));
+                return std::make_unique<AssignExprNode>((*v)->name, std::move(value));
             }
 
             // report an error if the left side of the assignment is not an identifier.
