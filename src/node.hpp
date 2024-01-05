@@ -52,7 +52,7 @@ namespace lox
     struct VarExprNode;
     struct LogicalExprNode;
     struct CallExprNode;
-    struct CompExprNode;
+    struct CmpExprNode;
 
     using BinaryExprNodePtr = std::unique_ptr<BinaryExprNode>;
     using UnaryExprNodePtr = std::unique_ptr<UnaryExprNode>;
@@ -62,13 +62,13 @@ namespace lox
     using VarExprNodePtr = std::unique_ptr<VarExprNode>;
     using LogicalExprNodePtr = std::unique_ptr<LogicalExprNode>;
     using CallExprNodePtr = std::unique_ptr<CallExprNode>;
-    using CompExprNodePtr = std::unique_ptr<CompExprNode>;
+    using CmpExprNodePtr = std::unique_ptr<CmpExprNode>;
 
 
     using ExprNode = std::variant<BinaryExprNodePtr, UnaryExprNodePtr,
                         LiteralNodePtr, GroupingNodePtr,
                         AssignExprNodePtr, VarExprNodePtr, LogicalExprNodePtr,
-                        CallExprNodePtr, CompExprNodePtr>;
+                        CallExprNodePtr, CmpExprNodePtr>;
 
 
     struct ExprStmtNode;
@@ -182,9 +182,9 @@ namespace lox
     };
 
 
-    struct CompExprNode
+    struct CmpExprNode
     {   
-        explicit CompExprNode(Token op_, ExprNode left_, ExprNode right_) :
+        explicit CmpExprNode(Token op_, ExprNode left_, ExprNode right_) :
             op(std::move(op_)), left(std::move(left_)), right(std::move(right_)) { }
 
         Token op;

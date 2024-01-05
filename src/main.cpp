@@ -4,7 +4,7 @@
 #include "node.hpp"
 #include "parser.hpp"
 #include "ast_printer.hpp"
-// #include "llvm_visitor.hpp"
+#include "llvm_visitor.hpp"
 
 #include <string_view>
 #include <iostream>
@@ -45,10 +45,13 @@ static void RunFile(std::string_view filename)
         std::cout << std::endl;
     }
 
-    // lox::LLVMVisitor llvm_visitor;
-    // // llvm_visitor.Visit(root);
-    // llvm_visitor.End();
-    // llvm_visitor.Print();
+    lox::LLVMVisitor llvm_visitor;
+    for (const auto& node : root)
+    {
+        llvm_visitor.Generate(node);
+    }
+    llvm_visitor.End();
+    llvm_visitor.Print();
 }
 
 

@@ -3,7 +3,7 @@
 set -xe
 
 LFLAGS="`llvm-config --cxxflags --ldflags --system-libs --libs core`"
-CFILES="main.cpp scanner.cpp parser.cpp types.cpp token.cpp node.cpp ast_printer.cpp"
+CFILES="main.cpp scanner.cpp parser.cpp types.cpp token.cpp node.cpp ast_printer.cpp llvm_visitor.cpp"
 TEMP="llvm_visitor.cpp  -Wall -Wextra -Wconversion -Wpedantic -Werror"
 CFLAGS="-std=c++20"
 

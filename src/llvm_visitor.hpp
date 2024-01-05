@@ -13,6 +13,7 @@ DESCRIPTION:
 
 TODO:
     - support for nested loops continue break (need to keep tracks of the loops using a stack).
+    - support for NaN?
 */
 
 
@@ -36,6 +37,7 @@ TODO:
 #include "common.hpp"
 #include "node.hpp"
 
+#include <variant>
 #include <unordered_map>
 #include <memory>
 #include <string>
@@ -51,15 +53,17 @@ namespace lox
     {
     public:
 
-        // Create the function main.
+        // Create the main function.
         explicit LLVMVisitor();
 
         // ~LLVMVisitor();
         
-        // Temporary method 
+        // End the main function.
         auto End()
             -> void;
 
+
+        // Print the code in the console.
         auto Print()
             -> void
         {
@@ -67,21 +71,12 @@ namespace lox
         }
 
 
+        // Generate IR code.
         auto Generate(const StmtNode& ast) 
             -> void;
 
 
-    private:
-        template <typename T>
-            requires std::same_as<T, ExprNode> || std::same_as<T, Literal> || 
-                std::same_as<T, StmtNode>
-        auto Visit(const T& node)
-            -> void
-        {
-            std::visit(*this, node);
-        }
-
-
+    public:
         // Visitor for expressions. Expressions always return a value (saved inside current_value).
 
         auto operator()(const GroupingNodePtr& node)
@@ -108,7 +103,7 @@ namespace lox
         auto operator()(const CallExprNodePtr& node)
             -> void;
 
-        auto operator()(const CompExprNodePtr& node)
+        auto operator()(const CmpExprNodePtr& node)
             -> void;
 
 
@@ -157,6 +152,15 @@ namespace lox
 
     // Utility functions.
     private:
+        template <typename T>
+            requires std::same_as<T, ExprNode> || std::same_as<T, Literal> || 
+                std::same_as<T, StmtNode>
+        auto Visit(const T& node)
+            -> void
+        {
+            std::visit(*this, node);
+        }
+
 
         // Set the current basic block and insert point.
         auto SetCurrentBlock(llvm::BasicBlock* bb)
@@ -167,50 +171,50 @@ namespace lox
         }
 
         
-        auto WriteLocalVar(llvm::BasicBlock* bb, std::string_view name, llvm::Value* value)
-            -> void
-        {
-            current_def[bb].defs[name] = value;
-        }
+        // auto WriteLocalVar(llvm::BasicBlock* bb, std::string_view name, llvm::Value* value)
+        //     -> void
+        // {
+        //     current_def[bb].defs[name] = value;
+        // }
 
 
-        auto AddEmptyPhi(llvm::BasicBlock* bb, std::string_view name)
-            -> llvm::PHINode*
-        {
-            // return bb->empty() ? 
-            //         llvm::PHINode::Create()
-        }
+        // auto AddEmptyPhi(llvm::BasicBlock* bb, std::string_view name)
+        //     -> llvm::PHINode*
+        // {
+        //     // return bb->empty() ? 
+        //     //         llvm::PHINode::Create()
+        // }
 
-        auto ReadLocalVarRecursive(llvm::BasicBlock* bb, std::string_view name)
-            -> llvm::Value*;
+        // auto ReadLocalVarRecursive(llvm::BasicBlock* bb, std::string_view name)
+        //     -> llvm::Value*;
 
 
-        auto ReadLocalVar(llvm::BasicBlock* bb, std::string_view name)
-            -> llvm::Value*
-        {
-            if (auto value = current_def[bb].defs.find(name); value != current_def[bb].defs.end())
-            {
-                return value->second;
-            }
+        // auto ReadLocalVar(llvm::BasicBlock* bb, std::string_view name)
+        //     -> llvm::Value*
+        // {
+        //     if (auto value = current_def[bb].defs.find(name); value != current_def[bb].defs.end())
+        //     {
+        //         return value->second;
+        //     }
 
-            // Recurse through outer basic block to check if the name is defined outside.
-            return ReadLocalVarRecutrsive(bb, name);
-        }
+        //     // Recurse through outer basic block to check if the name is defined outside.
+        //     return ReadLocalVarRecutrsive(bb, name);
+        // }
 
     // Utility classes for internal usage.
     private:
 
-        // This struct keeps track of declaration of names inside a basic block.
-        struct BasicBlockDef
-        {
-            // It's safe to use a string_view because we are referring to a string
-            // in the source code (it is freed after the llvm pass). 
-            llvm::DenseMap<std::string_view, llvm::TrackingVH<llvm::Value>> defs;
-            llvm::DenseMap<llvm::PHINode*, std::string_view> incomplete_phis;
+        // // This struct keeps track of declaration of names inside a basic block.
+        // struct BasicBlockDef
+        // {
+        //     // It's safe to use a string_view because we are referring to a string
+        //     // in the source code (it is freed after the llvm pass). 
+        //     llvm::DenseMap<std::string_view, llvm::TrackingVH<llvm::Value>> defs;
+        //     llvm::DenseMap<llvm::PHINode*, std::string_view> incomplete_phis;
             
-            // true if we know all the predecessors of this block, false otherwise.
-            bool sealed = false;
-        };
+        //     // true if we know all the predecessors of this block, false otherwise.
+        //     bool sealed = false;
+        // };
 
 
     private:
@@ -218,21 +222,21 @@ namespace lox
         std::unique_ptr<llvm::Module> mod;
         std::unique_ptr<llvm::IRBuilder<>> builder;
         
-        llvm::StringMap<llvm::Value*> name_vars;
+        // llvm::StringMap<llvm::Value*> name_vars;
 
         // Map basic blocks to definitions inside the block
-        llvm::DenseMap<llvm::BasicBlock*, BasicBlockDef> current_def;
+        // llvm::DenseMap<llvm::BasicBlock*, BasicBlockDef> current_def;
 
 
 
         // Last value produced.
-        llvm::Value* current_value;
+        llvm::Value* current_value{nullptr};
 
         // Current function.
-        llvm::Function* current_func;
+        llvm::Function* current_func{nullptr};
 
         // Current block.
-        llvm::BasicBlock* current_block;
+        llvm::BasicBlock* current_block{nullptr};
     };
 } // namespace lox
 

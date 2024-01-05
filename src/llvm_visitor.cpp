@@ -1,10 +1,10 @@
 #include "llvm_visitor.hpp"
+
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/Type.h> // Type
 #include <llvm/IR/Verifier.h>
 #include <llvm/ADT/StringRef.h>
 
-#include <variant>
 #include <utility>
 
 #include "log.hpp"
@@ -16,14 +16,6 @@ namespace lox
         context{ std::make_unique<llvm::LLVMContext>() },
         mod{ std::make_unique<llvm::Module>("MyLoxCompiler", *context) },
         builder{ std::make_unique<llvm::IRBuilder<>>(*context) }
-    {
-        
-    }
-
-
-
-    auto LLVMVisitor::Generate(const StmtNode& ast)
-        -> void
     {
         // Create (the implicit) main function.
         using namespace llvm;
@@ -49,48 +41,58 @@ namespace lox
 
         builder->SetInsertPoint(bb);
 
-        VisitStatement(ast);
+        current_func = main_func;
+        current_block = bb;
+    }
+
+
+
+    auto LLVMVisitor::Generate(const StmtNode& ast)
+        -> void
+    {
+        Visit(ast);
     }
 
 
     auto LLVMVisitor::End()
         -> void
     {
-       
+       // Create the void return value for main function.
+        builder->CreateRetVoid();
     }
 
 
     // ********************************* UTILITY *********************************
 
-    auto LLVMVisitor::ReadLocalVarRecursive(llvm::BasicBlock* bb, std::string_view name)
-            -> llvm::Value* 
-        {
-            using namespace llvm;
+    // auto LLVMVisitor::ReadLocalVarRecursive(llvm::BasicBlock* bb, std::string_view name)
+    //     -> llvm::Value* 
+    // {
+    //     using namespace llvm;
 
-            Value* value {nullptr};
-            
-            // Create an empty phinode
-            if (!current_def[bb].sealed)
-            {
-                PHINode* phi = AddEmptyPhi(bb, name);
-                current_def[bb].incomplete_phis[phi] = name;
-                value = phi;
-            }
-            else if (auto pred_bb = bb->getSinglePredecessor())
-            {
-                value = ReadLocalVar(pred_bb, name);
-            }
-            else
-            {
-                PHINode* phi = AddEmptyPhi(bb, name);
-                value = phi;
-                WriteLocalVar(bb, name, value);
-                AddPhiOperands(bb, name, phi);
-            }
+    //     Value* value {nullptr};
+        
+    //     // Create an empty phinode
+    //     if (!current_def[bb].sealed)
+    //     {
+    //         PHINode* phi = AddEmptyPhi(bb, name);
+    //         current_def[bb].incomplete_phis[phi] = name;
+    //         value = phi;
+    //     }
+    //     else if (auto pred_bb = bb->getSinglePredecessor())
+    //     {
+    //         value = ReadLocalVar(pred_bb, name);
+    //     }
+    //     else
+    //     {
+    //         PHINode* phi = AddEmptyPhi(bb, name);
+    //         value = phi;
+    //         WriteLocalVar(bb, name, value);
+    //         AddPhiOperands(bb, name, phi);
+    //     }
 
-            WriteLocalVar(bb, name, value);
-            return value;
-        }
+    //     WriteLocalVar(bb, name, value);
+    //     return value;
+    // }
 
     // ********************************* UTILITY *********************************
 
@@ -113,7 +115,7 @@ namespace lox
     auto LLVMVisitor::operator()(const VarStmtNodePtr& node)
         -> void
     {
-        llvm::StringRef var{node->name.Lexeme()};
+        // llvm::StringRef var{node->name.Lexeme()};
         
         // name_vars[var] = 
     }
@@ -129,14 +131,33 @@ namespace lox
     auto LLVMVisitor::operator()(const FunStmtNodePtr& node)
         -> void
     {
+        using namespace llvm;
+    
+        FunctionType* main_proto = FunctionType::get(
+            Type::getVoidTy(*context),
+            {},
+            false 
+        );
 
+        Function* main_func = Function::Create(
+            main_proto, 
+            GlobalValue::ExternalLinkage,
+            "main",
+            *mod 
+        );
+
+        BasicBlock* bb = BasicBlock::Create(
+            *context,
+            "entry",
+            main_func
+        );
     }
 
 
     auto LLVMVisitor::operator()(const ReturnStmtNodePtr& node)
         -> void
     {
-
+        
     }
 
 
@@ -163,7 +184,7 @@ namespace lox
         if (node->else_branch)
         {
             SetCurrentBlock(false_bb);
-            Visit(node->then_branch);
+            Visit(*node->else_branch);
             builder->CreateBr(exit_bb);
         }
 
@@ -231,19 +252,20 @@ namespace lox
         {
         case TokenType::Plus:   // + 
             Log("+");
-            current_value = builder->CreateFAdd(left, right, "addtmp");
+            current_value = builder->CreateFAdd(left, right, "add");
             break; 
         case TokenType::Minus:  // -
-            current_value = builder->CreateFSub(left, right, "subtmp");
+            current_value = builder->CreateFSub(left, right, "sub");
             break;
         case TokenType::Star:   // *
-            current_value = builder->CreateFMul(left, right, "multmp");
+            current_value = builder->CreateFMul(left, right, "mul");
             break;
         case TokenType::Slash:  // /
-            current_value = builder->CreateFDiv(left, right, "divtmp");
+            current_value = builder->CreateFDiv(left, right, "div");
             break;
         default:
             // log error
+            current_value = nullptr;
             break;
         }
     }
@@ -265,11 +287,14 @@ namespace lox
         {
         case TokenType::Bang:   // !
             // TODO
+            Error("Unsupported '!' unary operation.");
+            current_value = nullptr;
             break;
         case TokenType::Minus:  // -
-            current_value = builder->CreateFNeg(right, "tmpneg");
+            current_value = builder->CreateFNeg(right, "neg");
             break; 
         default:
+            current_value = nullptr;
             break;
         }
     }
@@ -301,7 +326,92 @@ namespace lox
     auto LLVMVisitor::operator()(const LogicalExprNodePtr& node)
         -> void
     {
+        Log("BinaryLogical");
+        Visit(node->left);
+        auto left = current_value;
+        Visit(node->right);
+        auto right = current_value;
 
+        if (!left || !right)
+        {
+            // Error 
+            Error("Left or right operand in binary logical is null.");
+        }
+
+        // TODO: check if the types are boolean or raise an error.
+    
+        switch (node->op.Type())
+        {
+        case TokenType::And:      // <=
+            Log("and");
+            current_value = builder->CreateAnd(left, right, "and");
+            break;
+        case TokenType::Or:           // <
+            Log("or");
+            current_value = builder->CreateOr(left, right, "or");
+            break;
+        default:
+            // log error
+            current_value = nullptr;
+            break;
+        }
+    }
+
+
+    auto LLVMVisitor::operator()(const CallExprNodePtr& node)
+        -> void
+    {
+
+    }
+
+
+    auto LLVMVisitor::operator()(const CmpExprNodePtr& node)
+        -> void
+    {
+        Log("BinaryComp");
+        Visit(node->left);
+        auto left = current_value;
+        Visit(node->right);
+        auto right = current_value;
+
+        if (!left || !right)
+        {
+            // Error 
+            Error("Left or right operand in binary comparison is null.");
+        }
+    
+        switch (node->op.Type())
+        {
+        case TokenType::LessEqual:      // <=
+            Log("<=");
+            current_value = builder->CreateFCmpOLE(left, right, "le");
+            break;
+        case TokenType::Less:           // <
+            Log("<");
+            current_value = builder->CreateFCmpOLT(left, right, "lt");
+            break;
+        case TokenType::GreaterEqual:   // >=
+            Log(">=");
+            current_value = builder->CreateFCmpOGE(left, right, "ge");
+            break;
+        case TokenType::Greater:        // > 
+            Log(">=");
+            current_value = builder->CreateFCmpOGT(left, right, "gt");
+            break;
+        case TokenType::EqualEqual:     // ==
+            Log("==");
+            current_value = builder->CreateFCmpOEQ(left, right, "eq");
+            break;
+        case TokenType::BangEqual:      // != 
+            Log("!=");
+            current_value = builder->CreateFCmpONE(left, right, "ne");
+            break;
+
+        default:
+            // log error
+            current_value = nullptr;
+            break;
+        }
     }
 
     // ******************************** VISIT EXPRESSIONS *************************************
@@ -313,7 +423,7 @@ namespace lox
         -> void
     {
         // I don't know if this is correct.
-        // value = llvm::ConstantPointerNull::get(llvm::PointerType::get())
+        current_value = llvm::ConstantPointerNull::get(llvm::PointerType::get(*context, 0));
     }
         
     auto LLVMVisitor::operator()(const std::string& value)
@@ -325,13 +435,15 @@ namespace lox
     auto LLVMVisitor::operator()(const f64& value)
         -> void
     {
+        Log("Double");
         current_value = llvm::ConstantFP::get(builder->getDoubleTy(), value);
     }
 
     auto LLVMVisitor::operator()(const bool& value)
         -> void
     {
-        current_value = builder->getInt8(value ? 1 : 0);
+        // TODO: i1 or i8?
+        current_value = builder->getInt1(value ? 1 : 0);
     }
 
     // ************************* VISIT LITERAL ***********************

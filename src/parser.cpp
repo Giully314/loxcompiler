@@ -366,7 +366,7 @@ namespace lox
         {
             auto op = prev;
             auto right = Comparison();
-            expr = std::make_unique<BinaryExprNode>(std::move(op),
+            expr = std::make_unique<CmpExprNode>(std::move(op),
                 std::move(expr), std::move(right));
         }
 
@@ -384,7 +384,7 @@ namespace lox
         {
             auto op = prev;
             auto right = Term();
-            expr = std::make_unique<CompExprNode>(std::move(op),
+            expr = std::make_unique<CmpExprNode>(std::move(op),
                 std::move(expr), std::move(right));
         }
         return expr;
@@ -505,7 +505,11 @@ namespace lox
         else if (Match(TokenType::Identifier))
         {
             return std::make_unique<VarExprNode>(prev);
-        }   
+        }  
+        else if (Match(TokenType::Nil))
+        {
+            return std::make_unique<LiteralNode>(LoxNil{});
+        }
         else
         {
             // Error, not supported type or invalid token.

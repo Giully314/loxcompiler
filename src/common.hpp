@@ -29,6 +29,25 @@ namespace lox
 
     template <typename T>
     using non_owned_ptr = T*;
+
+	struct NonCopyable
+	{
+		NonCopyable() = default;
+		NonCopyable(NonCopyable&&) = default;
+		NonCopyable& operator=(NonCopyable&&) = default;
+		NonCopyable(const NonCopyable&) = delete;
+		NonCopyable& operator=(const NonCopyable&) = delete;	
+	};
+
+
+	struct NonMovable
+	{
+		NonMovable() = default;
+		NonMovable(NonMovable&&) = delete;
+		NonMovable& operator=(NonMovable&&) = delete;
+		NonMovable(const NonMovable&) = default;
+		NonMovable& operator=(const NonMovable&) = default;
+	};
 } // namespace lox
 
 
