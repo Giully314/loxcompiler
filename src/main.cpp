@@ -4,7 +4,7 @@
 #include "node.hpp"
 #include "parser.hpp"
 #include "ast_printer.hpp"
-#include "llvm_visitor.hpp"
+// #include "llvm_visitor.hpp"
 
 #include <string_view>
 #include <iostream>
@@ -31,9 +31,9 @@ static void RunFile(std::string_view filename)
     //     t = scanner.NextToken();
     //     std::cout << "lexeme: " << t.Lexeme() << " type: " << t.TypeInt() << std::endl;
     // } while (t.Type() != lox::TokenType::Eof && t.Type() != lox::TokenType::Error);
+    // scanner.Reset();
 
 
-    scanner.Reset();
     lox::Parser parser{&scanner};
     auto root = parser.Parse();
 
@@ -45,13 +45,13 @@ static void RunFile(std::string_view filename)
         std::cout << std::endl;
     }
 
-    lox::LLVMVisitor llvm_visitor;
-    for (const auto& node : root)
-    {
-        llvm_visitor.Generate(node);
-    }
-    llvm_visitor.End();
-    llvm_visitor.Print();
+    // lox::LLVMVisitor llvm_visitor;
+    // for (const auto& node : root)
+    // {
+    //     llvm_visitor.Generate(node);
+    // }
+    // llvm_visitor.End();
+    // llvm_visitor.Print();
 }
 
 

@@ -133,31 +133,34 @@ namespace lox
     {
         using namespace llvm;
     
-        FunctionType* main_proto = FunctionType::get(
+        FunctionType* proto = FunctionType::get(
             Type::getVoidTy(*context),
             {},
             false 
         );
 
-        Function* main_func = Function::Create(
-            main_proto, 
+        Function* func = Function::Create(
+            proto, 
             GlobalValue::ExternalLinkage,
-            "main",
+            node->name.Lexeme(),
             *mod 
         );
 
         BasicBlock* bb = BasicBlock::Create(
             *context,
             "entry",
-            main_func
+            func
         );
+
+
+        
     }
 
 
     auto LLVMVisitor::operator()(const ReturnStmtNodePtr& node)
         -> void
     {
-        
+
     }
 
 
@@ -361,7 +364,9 @@ namespace lox
     auto LLVMVisitor::operator()(const CallExprNodePtr& node)
         -> void
     {
+        using namespace llvm;
 
+        // Function* callee = mod->getFunction(node->)
     }
 
 

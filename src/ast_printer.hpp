@@ -27,6 +27,12 @@ namespace lox
     class ASTPrinter
     {
     public:
+        // auto operator()(const std::monostate& n) const
+        //     -> std::string
+        // {
+        //     return "variant monostate";
+        // }
+
         auto operator()(const BinaryExprNodePtr& n) const
             -> std::string
         {
@@ -92,7 +98,7 @@ namespace lox
             -> std::string 
         {
             std::stringstream ss;
-            ss << Visit(n->callee);
+            ss << n->callee;
             ss << "(";
             for (const auto& p : n->arguments)
             {
@@ -151,7 +157,10 @@ namespace lox
             {
                 ss << p.Lexeme() << ", ";
             }
-            ss.seekp(-2, ss.cur);
+            if (n->parameters.size() != 0)
+            {
+                ss.seekp(-2, ss.cur);
+            }
             ss << ")\nBody:\n";
             ss << (*this)(n->body);
             return ss.str();

@@ -38,6 +38,7 @@ DESCRIPTION:
 #include <utility>
 #include <vector>
 #include <initializer_list>
+#include <string>
 
 #include "token.hpp"
 #include "types.hpp"
@@ -171,13 +172,13 @@ namespace lox
 
     struct CallExprNode
     {
-        explicit CallExprNode(Token paren_, ExprNode callee_, std::vector<ExprNode> args) :
+        explicit CallExprNode(Token paren_, std::string callee_, std::vector<ExprNode> args) :
             paren(std::move(paren_)), callee(std::move(callee_)), arguments(std::move(args)) { }
 
         // This token is stored to report errors at runtime or during compilation in case 
         // the function call is not right.
         Token paren;
-        ExprNode callee;
+        std::string callee;
         std::vector<ExprNode> arguments;
     };
 

@@ -27,6 +27,7 @@ https://craftinginterpreters.com/appendix-i.html
 #include <string_view>
 #include <initializer_list>
 #include <vector>
+#include <exception>
 
 
 namespace lox
@@ -84,11 +85,16 @@ namespace lox
             -> void; 
         
         
+        // Check if the scanner is at the end.
         auto IsAtEnd() const noexcept 
             -> bool
         {
             return current.Type() == TokenType::Eof;
         }
+
+        
+        auto Synchronize()
+            -> void;
 
     private:
         
@@ -167,6 +173,16 @@ namespace lox
             -> ExprNode;
 
     private:
+        class ParseError : public std::exception
+        {
+        public:
+            const char* what() const noexcept override 
+            {
+                return "Parse error.";
+            }
+        };
+
+    private:
         non_owned_ptr<Scanner> scanner;
         Token current;
         Token prev;
@@ -177,7 +193,7 @@ namespace lox
         // When true the parser synchronize itself to get in a good state and trying
         // to continue the parsing. This is done because we want to catch all the errors
         // in one pass.
-        bool panic_mode{ false };
+        // bool panic_mode{ false };
     };
 } // namespace lox
 

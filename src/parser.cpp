@@ -15,11 +15,24 @@ namespace lox
         -> std::vector<StmtNode>
     {
         std::vector<StmtNode> nodes;
+
         while (!IsAtEnd())
         {
-            nodes.emplace_back(Declaration());
+            try
+            {
+                auto node = Declaration();
+                if (!had_error)
+                {
+                    nodes.emplace_back(std::move(node));
+                }
+            }
+            catch (const ParseError& e)
+            {
+                Synchronize();
+            }
         }
-        return nodes;
+    
+        return had_error ? std::vector<StmtNode>{} : std::move(nodes);
     }
 
 
@@ -65,7 +78,7 @@ namespace lox
     {
         Consume(TokenType::Identifier, "Expect a function name.");
         auto fun_name = prev;
-
+        
         Consume(TokenType::LeftParen, "Expect '(' after function name.");
 
         std::vector<Token> params;
@@ -453,11 +466,31 @@ namespace lox
         -> ExprNode
     {
         auto expr = Primary();
-
         // Parse function arguments.
         // TODO: add support for properties when classes will be supported.
         while (Match(TokenType::LeftParen))
         {
+            // TODO: This code is ugly, try to refactor it.
+            // Check if expr is a name (a string) because we can't call a boolean,
+            // a number or a nil value.
+            std::string fname;
+            if (auto it = std::get_if<LiteralNodePtr>(&expr))
+            {   
+                if (auto pt = std::get_if<std::string>(&(*it)->literal))
+                {   
+                    fname = std::move(*pt);
+                }
+                else
+                {
+                    ErrorAtCurrent("Function name must be a string.");
+                }
+            }
+            else
+            {
+                ErrorAtCurrent("Function name must be a string.");
+            }
+
+
             std::vector<ExprNode> args;
             if (!Check(TokenType::RightParen))
             {
@@ -467,10 +500,11 @@ namespace lox
                 } while (Match(TokenType::Comma));
             }
 
+
             Consume(TokenType::RightParen, "Expect ')' after arguments.");
             auto paren = prev;
             expr = std::make_unique<CallExprNode>(std::move(paren),
-                std::move(expr), std::move(args));
+                std::move(fname), std::move(args));
         }
 
         return expr;
@@ -500,10 +534,14 @@ namespace lox
         }
         else if (Match(TokenType::String))
         {
+            Log("string");
+            Log(prev.Lexeme());
             return std::make_unique<LiteralNode>(std::string{prev.Lexeme()});
         }
         else if (Match(TokenType::Identifier))
         {
+            Log("we are here");
+            Log(prev.Lexeme());
             return std::make_unique<VarExprNode>(prev);
         }  
         else if (Match(TokenType::Nil))
@@ -526,8 +564,7 @@ namespace lox
     auto Parser::ErrorAt(const Token& t, const std::string_view msg)
         -> void
     {
-        if (panic_mode) return;
-        panic_mode = true;
+        had_error = true;
 
         // TODO: refactor with std::format. (Right now I'm using clang14 and isn't available)
         std::cout << "[line " << t.Line() << "] Error"; 
@@ -544,7 +581,8 @@ namespace lox
         }
 
         std::cout << ": " << msg << std::endl;
-        had_error = true;
+
+        throw ParseError{};
     }
 
 
@@ -602,4 +640,33 @@ namespace lox
 
         ErrorAtCurrent(msg);
     }
+
+
+    auto Parser::Synchronize()
+        -> void
+    {
+        while (current.Type() != TokenType::Eof) 
+        {
+            if (prev.Type() == TokenType::Semicolon) return;
+        
+            switch (current.Type()) 
+            {
+                case TokenType::Class:
+                case TokenType::Fun:
+                case TokenType::Var:
+                case TokenType::For:
+                case TokenType::If:
+                case TokenType::While:
+                case TokenType::Print:
+                case TokenType::Return:
+                    return;
+
+                default:
+                    ; // Do nothing.
+            }
+            Advance();
+        }
+    }
+
+
 } // namespace lox
